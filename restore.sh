@@ -1,7 +1,7 @@
 #!/bin/bash
 # restore-gnome.sh
 
-BACKUP_DIR="$HOME/gnome-backup"
+BACKUP_DIR="./gnome-backup"
 
 echo "🔄 Restoring dconf settings..."
 dconf load / < "$BACKUP_DIR/dconf-settings.ini"

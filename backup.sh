@@ -1,7 +1,7 @@
 #!/bin/bash
 # backup-gnome.sh
 
-BACKUP_DIR="$HOME/gnome-backup"
+BACKUP_DIR="./gnome-backup"
 mkdir -p "$BACKUP_DIR"
 
 echo "🔄 Exporting dconf settings..."
