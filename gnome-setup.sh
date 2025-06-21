@@ -38,31 +38,57 @@ backup() {
 restore() {
   echo "🔁 Restoring GNOME settings from $BACKUP_DIR..."
 
-  [[ ! -f "$BACKUP_DIR/dconf-settings.ini" ]] && echo "❌ dconf-settings.ini not found." && exit 1
+  if [[ ! -f "$BACKUP_DIR/dconf-settings.ini" ]]; then
+    echo "❌ dconf-settings.ini not found. Aborting."
+    exit 1
+  fi
 
   echo "🧠 Loading dconf settings..."
   dconf load / < "$BACKUP_DIR/dconf-settings.ini"
 
   echo "📂 Restoring extensions..."
   mkdir -p ~/.local/share/gnome-shell/extensions
-  rsync -a "$BACKUP_DIR/extensions/" ~/.local/share/gnome-shell/extensions/
+  if [[ -d "$BACKUP_DIR/extensions" ]]; then
+    rsync -a "$BACKUP_DIR/extensions/" ~/.local/share/gnome-shell/extensions/
+  else
+    echo "⚠️ No extensions found to restore."
+  fi
 
-  echo "🎨 Restoring themes and icons..."
-  mkdir -p ~/.themes ~/.icons
-  rsync -a "$BACKUP_DIR/themes/" ~/.themes/
-  rsync -a "$BACKUP_DIR/icons/" ~/.icons/
+  echo "🎨 Restoring themes..."
+  mkdir -p ~/.themes
+  if [[ -d "$BACKUP_DIR/themes" ]]; then
+    rsync -a "$BACKUP_DIR/themes/" ~/.themes/
+  else
+    echo "⚠️ No themes found to restore."
+  fi
+
+  echo "🎨 Restoring icons..."
+  mkdir -p ~/.icons
+  if [[ -d "$BACKUP_DIR/icons" ]]; then
+    rsync -a "$BACKUP_DIR/icons/" ~/.icons/
+  else
+    echo "⚠️ No icons found to restore."
+  fi
 
   echo "🖼 Restoring wallpapers..."
-  [[ -d "$BACKUP_DIR/wallpapers" ]] && rsync -a "$BACKUP_DIR/wallpapers/" ~/Pictures/Wallpapers/ || true
+  if [[ -d "$BACKUP_DIR/wallpapers" ]]; then
+    mkdir -p ~/Pictures/Wallpapers
+    rsync -a "$BACKUP_DIR/wallpapers/" ~/Pictures/Wallpapers/
+  else
+    echo "⚠️ No wallpapers found to restore."
+  fi
 
-  echo "⚙️ Re-enabling extensions..."
-  while read ext; do
-    gnome-extensions enable "$ext" 2>/dev/null || echo "⚠️ '$ext' not found (you may need to install it)"
-  done < "$BACKUP_DIR/extension-list.txt"
+  echo "⚙️ Re-enabling GNOME extensions..."
+  if [[ -f "$BACKUP_DIR/extension-list.txt" ]]; then
+    while read -r ext; do
+      gnome-extensions enable "$ext" 2>/dev/null || echo "⚠️ Could not enable: $ext"
+    done < "$BACKUP_DIR/extension-list.txt"
+  else
+    echo "⚠️ extension-list.txt not found — skipping enable step."
+  fi
 
   echo "✅ Restore complete. Log out or press Alt+F2 and type 'r' to reload GNOME Shell."
 }
-
 case "$1" in
   --backup) backup ;;
   --restore) restore ;;
