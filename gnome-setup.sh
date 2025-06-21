@@ -10,6 +10,43 @@ usage() {
   exit 1
 }
 
+install_extension() {
+  local UUID="$1"
+  local EXT_DIR="$HOME/.local/share/gnome-shell/extensions/$UUID"
+
+  if [[ -d "$EXT_DIR" ]]; then
+    echo "✅ Extension already installed: $UUID"
+    return
+  fi
+
+  echo "🌐 Searching for: $UUID"
+
+  local EXT_INFO
+  EXT_INFO=$(curl -s "https://extensions.gnome.org/extension-query/?search=$UUID" | jq ".extensions[] | select(.uuid==\"$UUID\")")
+  if [[ -z "$EXT_INFO" ]]; then
+    echo "❌ Extension not found online: $UUID"
+    return
+  fi
+
+  local EXT_ID NAME DL_PAGE VERSION DL_URL
+  EXT_ID=$(echo "$EXT_INFO" | jq -r '.id')
+  NAME=$(echo "$EXT_INFO" | jq -r '.name')
+
+  echo "📦 Installing: $NAME ($UUID)"
+
+  DL_PAGE=$(curl -s "https://extensions.gnome.org/extension-info/?uuid=$UUID")
+  VERSION=$(echo "$DL_PAGE" | jq -r '.shell_version_map | keys_unsorted[-1]')
+  DL_URL="https://extensions.gnome.org/download-extension/$UUID.shell-extension.zip?version_tag=$VERSION"
+
+  mkdir -p "$EXT_DIR"
+  curl -sL "$DL_URL" -o /tmp/ext.zip
+  unzip -q /tmp/ext.zip -d "$EXT_DIR"
+  rm /tmp/ext.zip
+
+  echo "⚙️ Enabling: $UUID"
+  gnome-extensions enable "$UUID" || echo "❌ Failed to enable: $UUID"
+}
+
 backup() {
   echo "🔄 Backing up GNOME settings to $BACKUP_DIR..."
 
@@ -81,7 +118,10 @@ restore() {
   echo "⚙️ Re-enabling GNOME extensions..."
   if [[ -f "$BACKUP_DIR/extension-list.txt" ]]; then
     while read -r ext; do
-      gnome-extensions enable "$ext" 2>/dev/null || echo "⚠️ Could not enable: $ext"
+      if ! gnome-extensions enable "$ext" 2>/dev/null; then
+        echo "❌ Missing extension: $ext – attempting auto-install..."
+        install_extension "$ext"
+      fi
     done < "$BACKUP_DIR/extension-list.txt"
   else
     echo "⚠️ extension-list.txt not found — skipping enable step."
@@ -89,6 +129,7 @@ restore() {
 
   echo "✅ Restore complete. Log out or press Alt+F2 and type 'r' to reload GNOME Shell."
 }
+
 case "$1" in
   --backup) backup ;;
   --restore) restore ;;
