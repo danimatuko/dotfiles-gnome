@@ -1,40 +1,24 @@
 #!/bin/bash
 
-set -e
+# Define backup directory
+BACKUP_DIR="~/gnome-backup"
+mkdir -p "$BACKUP_DIR"
 
-echo "🧩 Backing up GNOME desktop configuration..."
-
-BACKUP_DIR="$PWD"
-
-# --- Export GNOME settings ---
-echo "📥 Saving GNOME dconf settings..."
+echo "🟢 Dumping GNOME settings..."
 dconf dump / > "$BACKUP_DIR/dconf-settings.ini"
 
-# --- Save config files ---
-echo "📂 Backing up ~/.config/gtk-* and gnome-shell..."
-mkdir -p "$BACKUP_DIR/config"
-cp -r ~/.config/gtk-3.0 "$BACKUP_DIR/config/" 2>/dev/null || true
-cp -r ~/.config/gtk-4.0 "$BACKUP_DIR/config/" 2>/dev/null || true
-cp -r ~/.config/gnome-shell "$BACKUP_DIR/config/" 2>/dev/null || true
+echo "🟢 Saving GNOME extension list..."
+gnome-extensions list > "$BACKUP_DIR/extensions-list.txt"
+gnome-extensions list | xargs -n1 gnome-extensions info | grep uuid | cut -d' ' -f2 > "$BACKUP_DIR/extensions-uuids.txt"
 
-# --- Save user-installed extensions (optional but useful for offline restore) ---
-echo "🧩 Backing up GNOME Shell extensions..."
-mkdir -p "$BACKUP_DIR/extensions"
-cp -r ~/.local/share/gnome-shell/extensions/* "$BACKUP_DIR/extensions/" 2>/dev/null || true
+echo "🟢 Backing up themes, icons, fonts..."
+cp -r ~/.themes ~/.icons ~/.local/share/fonts "$BACKUP_DIR/themes" 2>/dev/null
 
-# --- Export enabled extension UUIDs ---
-echo "🧾 Exporting enabled extension UUIDs..."
-dconf read /org/gnome/shell/enabled-extensions \
-    | tr -d "[]'," \
-    | tr ' ' '\n' \
-    | grep -v '^$' \
-    > "$BACKUP_DIR/enabled-extensions.list"
+echo "🟢 Backing up config folders..."
+cp -r ~/.config/gtk-3.0 ~/.config/gtk-4.0 ~/.config/gnome-shell "$BACKUP_DIR/" 2>/dev/null
 
-# --- Optional theming assets ---
-echo "🎨 Backing up themes, icons, and fonts..."
-cp -r ~/.themes "$BACKUP_DIR/" 2>/dev/null || true
-cp -r ~/.icons "$BACKUP_DIR/" 2>/dev/null || true
-cp -r ~/.fonts "$BACKUP_DIR/" 2>/dev/null || true
+echo "🟢 Archiving everything..."
+tar -czvf "$HOME/gnome-backup.tar.gz" -C "$HOME" gnome-backup
 
-echo "✅ GNOME backup complete!"
+echo "✅ GNOME backup complete: $HOME/gnome-backup.tar.gz"
 
